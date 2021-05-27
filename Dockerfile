@@ -35,4 +35,4 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 EXPOSE 8080 8081 50051
 
 # run it!
-CMD ["./server"]
+CMD ["./server", "serve"]
