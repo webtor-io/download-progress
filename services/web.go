@@ -76,7 +76,7 @@ func (s *Web) Serve() error {
 	}
 	m := http.NewServeMux()
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		res, err := s.cl.Get(s.sourceURL)
+		res, err := s.cl.Get(s.getSourceURL(r))
 		id := r.URL.Query().Get("download-id")
 		if id == "" {
 			log.Errorf("Failed to find download-id url=%v", r.URL.String())
