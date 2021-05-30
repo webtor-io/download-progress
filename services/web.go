@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/pkg/errors"
 
@@ -24,16 +25,18 @@ type Web struct {
 	ln        net.Listener
 	cl        *http.Client
 	wp        *WriterPool
+	sp        *StatPool
 	sourceURL string
 }
 
-func NewWeb(c *cli.Context, cl *http.Client, wp *WriterPool) *Web {
+func NewWeb(c *cli.Context, cl *http.Client, wp *WriterPool, sp *StatPool) *Web {
 	return &Web{
 		host:      c.String(webHostFlag),
 		port:      c.Int(webPortFlag),
 		sourceURL: c.String(webSourceURL),
 		cl:        cl,
 		wp:        wp,
+		sp:        sp,
 	}
 }
 
@@ -76,7 +79,8 @@ func (s *Web) Serve() error {
 	}
 	m := http.NewServeMux()
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		res, err := s.cl.Get(s.getSourceURL(r))
+		u := s.getSourceURL(r)
+		res, err := s.cl.Get(u)
 		id := r.URL.Query().Get("download-id")
 		if id == "" {
 			log.Errorf("Failed to find download-id url=%v", r.URL.String())
@@ -84,11 +88,19 @@ func (s *Web) Serve() error {
 			return
 		}
 		if err != nil {
-			log.WithError(err).Errorf("Failed to get url=%v", s.sourceURL)
+			log.WithError(err).Errorf("Failed to get url=%v", u)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer res.Body.Close()
+		st := s.sp.Get(id)
+		l, err := strconv.Atoi(res.Header.Get("Content-Length"))
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get content length url=%v", u)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		st.length = int64(l)
 		wi := s.wp.Get(id, w)
 		for k, v := range res.Header {
 			wi.Header()[k] = v

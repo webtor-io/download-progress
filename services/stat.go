@@ -21,6 +21,7 @@ const (
 type Stat struct {
 	bytesWritten int64
 	rate         int64
+	length       int64
 	status       Status
 	cnt          *ratecounter.RateCounter
 }

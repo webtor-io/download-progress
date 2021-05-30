@@ -64,6 +64,7 @@ func (s *GRPC) Stat(ctx context.Context, r *pb.StatRequest) (*pb.StatReply, erro
 			Downloaded: 0,
 			Status:     pb.StatReply_NOT_STARTED,
 			Rate:       0,
+			Length:     0,
 		}, nil
 	} else {
 		var status pb.StatReply_Status
@@ -85,6 +86,7 @@ func (s *GRPC) Stat(ctx context.Context, r *pb.StatRequest) (*pb.StatReply, erro
 			Downloaded: st.bytesWritten,
 			Status:     status,
 			Rate:       st.Rate(),
+			Length:     st.length,
 		}, nil
 	}
 }

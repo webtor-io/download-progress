@@ -41,7 +41,7 @@ func serve(c *cli.Context) error {
 	wp := s.NewWriterPool(sp)
 
 	// Setting Web
-	web := s.NewWeb(c, hcl, wp)
+	web := s.NewWeb(c, hcl, wp, sp)
 	defer web.Close()
 
 	// Setting GRPC
