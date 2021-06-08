@@ -2,10 +2,11 @@ package services
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"net/http"
-	"strconv"
+	"net/http/httputil"
+	"net/url"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -29,12 +30,11 @@ type Web struct {
 	sourceURL string
 }
 
-func NewWeb(c *cli.Context, cl *http.Client, wp *WriterPool, sp *StatPool) *Web {
+func NewWeb(c *cli.Context, wp *WriterPool, sp *StatPool) *Web {
 	return &Web{
 		host:      c.String(webHostFlag),
 		port:      c.Int(webPortFlag),
 		sourceURL: c.String(webSourceURL),
-		cl:        cl,
 		wp:        wp,
 		sp:        sp,
 	}
@@ -79,35 +79,35 @@ func (s *Web) Serve() error {
 	}
 	m := http.NewServeMux()
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		u := s.getSourceURL(r)
-		res, err := s.cl.Get(u)
+		su := s.getSourceURL(r)
+
+		u, err := url.Parse(su)
+
+		if err != nil {
+			log.WithError(err).Errorf("Failed to parse url=%v", su)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		u.RawQuery = ""
+		u.Path = ""
+
 		id := r.URL.Query().Get("download-id")
 		if id == "" {
 			log.Errorf("Failed to find download-id url=%v", r.URL.String())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if err != nil {
-			log.WithError(err).Errorf("Failed to get url=%v", u)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		t := &http.Transport{
+			MaxIdleConns:        500,
+			MaxIdleConnsPerHost: 500,
+			MaxConnsPerHost:     500,
+			IdleConnTimeout:     90 * time.Second,
 		}
-		defer res.Body.Close()
-		st := s.sp.Get(id)
-		l, err := strconv.Atoi(res.Header.Get("Content-Length"))
-		if err != nil {
-			log.WithError(err).Errorf("Failed to get content length url=%v", u)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		st.length = int64(l)
+		proxy := httputil.NewSingleHostReverseProxy(u)
+		proxy.Transport = t
 		wi := s.wp.Get(id, w)
-		for k, v := range res.Header {
-			wi.Header()[k] = v
-		}
-		wi.WriteHeader(res.StatusCode)
-		_, err = io.Copy(wi, res.Body)
-		wi.Error(err)
+		proxy.ServeHTTP(wi, r)
 	})
 	log.Infof("Serving Web at %v", addr)
 	return http.Serve(s.ln, m)

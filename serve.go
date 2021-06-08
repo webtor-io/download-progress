@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	cs "github.com/webtor-io/common-services"
@@ -27,9 +25,6 @@ func configureServe(c *cli.Command) {
 }
 
 func serve(c *cli.Context) error {
-	// Setting HTTP Client
-	hcl := &http.Client{}
-
 	// Setting Probe
 	probe := cs.NewProbe(c)
 	defer probe.Close()
@@ -41,7 +36,7 @@ func serve(c *cli.Context) error {
 	wp := s.NewWriterPool(sp)
 
 	// Setting Web
-	web := s.NewWeb(c, hcl, wp, sp)
+	web := s.NewWeb(c, wp, sp)
 	defer web.Close()
 
 	// Setting GRPC
