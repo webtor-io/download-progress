@@ -89,8 +89,11 @@ func (s *Web) Serve() error {
 			return
 		}
 
-		u.RawQuery = ""
+		r.URL.Path = u.Path
+		r.URL.RawQuery = u.RawQuery
+
 		u.Path = ""
+		u.RawQuery = ""
 
 		id := r.URL.Query().Get("download-id")
 		if id == "" {
@@ -107,6 +110,7 @@ func (s *Web) Serve() error {
 		proxy := httputil.NewSingleHostReverseProxy(u)
 		proxy.Transport = t
 		wi := s.wp.Get(id, w)
+		log.Infof("proxy=%v url=%v", u.String(), r.URL.String())
 		proxy.ServeHTTP(wi, r)
 	})
 	log.Infof("Serving Web at %v", addr)
